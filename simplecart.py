@@ -6,18 +6,21 @@ import gym
 env 	= gym.make('CartPole-v0')
 #env.monitor.start('/tmp/OpenAI-CartPole', force=True)
 
-nSteps 	= 1000
-nRuns 	= 100
+nSteps 	= 5000
+nRuns 	= 10000
 render 	= False
+nRunsAvg= 100 #print average reward over the last 'nRunsAvg' runs
+aggression = 0.99
 
-aggression = 0.1
+
+bestReward = 0
+reward_record = [] #array to hold all rewards
 
 #parameters we optimize
-param_x = 2.2 
+param_x = 2
 param_omega = 0.1			
 param_omegadot = 0.1
 
-best_reward = 0
 
 for j in range(nRuns): #looping through simulations
 
@@ -29,9 +32,11 @@ for j in range(nRuns): #looping through simulations
 	param_x_last = param_x
 	param_omega_last = param_omega
 	param_omegadot_last = param_omegadot
-	param_x = param_x_last*(1 + np.random.uniform(-0.1,0.1))
-	param_omega = param_omega_last*(1 + np.random.uniform(-0.1,0.1))
-	param_omegadot = param_omegadot_last*(1 + np.random.uniform(-0.1,0.1))
+
+
+	param_x = param_x_last*(1 + np.random.uniform(-aggression,aggression))
+	param_omega = param_omega_last*(1 + np.random.uniform(-aggression,aggression))
+	param_omegadot = param_omegadot_last*(1 + np.random.uniform(-aggression,aggression))
 
 	for i in range(nSteps): #looping through time in each simulation
 
@@ -47,14 +52,14 @@ for j in range(nRuns): #looping through simulations
 		#if near low edge
 		if observation[0]<(env.observation_space.low[0] + param_x): 
 			action = 0 #push that direction to get opposite lean
-			if observation[3]>param_omega:
-				action = 1 #if we have obtained opposite lean
+			if (observation[2]>param_omega) or (observation[3]>param_omegadot):
+				action = 1 #if we have obtained opposite ean and lean rate
 
 		#if near high edge	
 		if observation[0]>(env.observation_space.high[0] - param_x):
 			action = 1 #push that direction to get opposite lean
-			if observation[3]<-param_omega:
-				action = 0 #if we have obtained opposite lean
+			if (observation[2]<-param_omega) or (observation[3]<-param_omegadot):
+				action = 0 #if we have obtained opposite lean and lean rate
 
 		observation, reward, done, info  = env.step(action)
 		
@@ -67,25 +72,23 @@ for j in range(nRuns): #looping through simulations
 			env.render()
 
 
-	if reward_cum>best_reward:
-		best_reward = reward_cum
-		print "new best!"
-		print "param_x: ", param_x
-		print "param_omega: ", param_omega 
-		print "param_omegadot: ", param_omegadot 
-		print "last reward: ", reward_cum
-		print "best reward: ", best_reward
-		best_reward = reward_cum
+	reward_record += [reward_cum]
+
+	avgReward = sum(reward_record[j-(nRunsAvg-1):j])/nRunsAvg
+	print "last ", nRunsAvg, " average reward: ",avgReward
+
+	if reward_cum>bestReward:
+		bestReward = reward_cum
+		#print "last reward: ", reward_cum
 	else:
-		print "old champ"
-		print "param_x: ", param_x_last
-		print "param_omega: ", param_omega_last
-		print "param_omegadot: ", param_omegadot_last
-		print "last reward: ", reward_cum		
-		print "best reward: ", best_reward
+		#print "last reward: ", reward_cum		
 		param_x = param_x_last
 		param_omega = param_omega_last
 		param_omegadot = param_omegadot_last
 
+	print "best reward: ", bestReward
+	print "param_x: ", param_x
+	print "param_omega: ", param_omega 
+	print "param_omegadot: ", param_omegadot 
 
 #env.monitor.close()
