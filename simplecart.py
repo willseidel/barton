@@ -4,12 +4,15 @@
 import numpy as np
 import gym
 env 	= gym.make('CartPole-v0')
-env.monitor.start('/tmp/OpenAI-CartPole', force=True)
+#env.monitor.start('/tmp/OpenAI-CartPole', force=True)
 
 nSteps 	= 1000
-nRuns 	= 2
-render 	= True
+nRuns 	= 100
+render 	= False
 
+aggression = 0.1
+
+#parameters we optimize
 param_x = 2.2 
 param_omega = 0.1			
 param_omegadot = 0.1
@@ -21,6 +24,14 @@ for j in range(nRuns): #looping through simulations
 	observation = env.reset()
 
 	reward_cum = 0
+
+	#setting parameters
+	param_x_last = param_x
+	param_omega_last = param_omega
+	param_omegadot_last = param_omegadot
+	param_x = param_x_last*(1 + np.random.uniform(-0.1,0.1))
+	param_omega = param_omega_last*(1 + np.random.uniform(-0.1,0.1))
+	param_omegadot = param_omegadot_last*(1 + np.random.uniform(-0.1,0.1))
 
 	for i in range(nSteps): #looping through time in each simulation
 
@@ -55,8 +66,26 @@ for j in range(nRuns): #looping through simulations
 		if render:
 			env.render()
 
+
 	if reward_cum>best_reward:
 		best_reward = reward_cum
+		print "new best!"
+		print "param_x: ", param_x
+		print "param_omega: ", param_omega 
+		print "param_omegadot: ", param_omegadot 
+		print "last reward: ", reward_cum
+		print "best reward: ", best_reward
+		best_reward = reward_cum
+	else:
+		print "old champ"
+		print "param_x: ", param_x_last
+		print "param_omega: ", param_omega_last
+		print "param_omegadot: ", param_omegadot_last
+		print "last reward: ", reward_cum		
+		print "best reward: ", best_reward
+		param_x = param_x_last
+		param_omega = param_omega_last
+		param_omegadot = param_omegadot_last
 
-print reward_cum
-env.monitor.close()
+
+#env.monitor.close()
