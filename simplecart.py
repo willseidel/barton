@@ -10,16 +10,15 @@ nSteps 	= 5000
 nRuns 	= 10000
 render 	= False
 nRunsAvg= 100 #print average reward over the last 'nRunsAvg' runs
-aggression = 0.99
+aggression = 0.5
 
 
 bestReward = 0
 reward_record = [] #array to hold all rewards
 
 #parameters we optimize
-param_x = 2
-param_omega = 0.1			
-param_omegadot = 0.1
+params = [1,1,1,1]
+params_best = params
 
 
 for j in range(nRuns): #looping through simulations
@@ -27,16 +26,6 @@ for j in range(nRuns): #looping through simulations
 	observation = env.reset()
 
 	reward_cum = 0
-
-	#setting parameters
-	param_x_last = param_x
-	param_omega_last = param_omega
-	param_omegadot_last = param_omegadot
-
-
-	param_x = param_x_last*(1 + np.random.uniform(-aggression,aggression))
-	param_omega = param_omega_last*(1 + np.random.uniform(-aggression,aggression))
-	param_omegadot = param_omegadot_last*(1 + np.random.uniform(-aggression,aggression))
 
 	for i in range(nSteps): #looping through time in each simulation
 
@@ -50,15 +39,15 @@ for j in range(nRuns): #looping through simulations
 		#maybe override based on location
 
 		#if near low edge
-		if observation[0]<(env.observation_space.low[0] + param_x): 
+		if observation[0]<(env.observation_space.low[0] + params[0]): 
 			action = 0 #push that direction to get opposite lean
-			if (observation[2]>param_omega) or (observation[3]>param_omegadot):
+			if (observation[2]>params[2]) or (observation[3]>params[3]):
 				action = 1 #if we have obtained opposite ean and lean rate
 
 		#if near high edge	
-		if observation[0]>(env.observation_space.high[0] - param_x):
+		if observation[0]>(env.observation_space.high[0] - params[0]):
 			action = 1 #push that direction to get opposite lean
-			if (observation[2]<-param_omega) or (observation[3]<-param_omegadot):
+			if (observation[2]<-params[2]) or (observation[3]<-params[3]):
 				action = 0 #if we have obtained opposite lean and lean rate
 
 		observation, reward, done, info  = env.step(action)
@@ -74,21 +63,26 @@ for j in range(nRuns): #looping through simulations
 
 	reward_record += [reward_cum]
 
-	avgReward = sum(reward_record[j-(nRunsAvg-1):j])/nRunsAvg
+	avgReward = sum(reward_record[j-(j%nRunsAvg)-1:j])/(j%nRunsAvg+1)
+	print "run#: ",j
+	print "reward: ", reward_cum
 	print "last ", nRunsAvg, " average reward: ",avgReward
-
-	if reward_cum>bestReward:
-		bestReward = reward_cum
-		#print "last reward: ", reward_cum
-	else:
-		#print "last reward: ", reward_cum		
-		param_x = param_x_last
-		param_omega = param_omega_last
-		param_omegadot = param_omegadot_last
-
 	print "best reward: ", bestReward
-	print "param_x: ", param_x
-	print "param_omega: ", param_omega 
-	print "param_omegadot: ", param_omegadot 
+	print "params[0]: ", params[0]
+	print "params[2]: ", params[2] 
+	print "params[3]: ", params[3] 
+	print "\n"
+	#testing if we beat the last set of runs and if so, then using new params
+	if (j%nRunsAvg == 0) and j>0:
+		if avgReward>bestReward:
+			print "new best parameters!"
+			bestReward = avgReward
+			params_best = params
+
+		#setting parameters based on random
+		params[0] = params_best[0]*(1 + np.random.uniform(-aggression,aggression))
+		params[2] = params_best[2]*(1 + np.random.uniform(-aggression,aggression))
+		params[3] = params_best[3]*(1 + np.random.uniform(-aggression,aggression))
+
 
 #env.monitor.close()
