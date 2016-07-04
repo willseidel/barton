@@ -1,25 +1,26 @@
 #priority 1: balancing (move to stop tipping) UNLESS
-#priority 2: if we are close to the edge we will reverse direction 
+#priority 2: if we are close to the edge (or heading there) we will will try to tip towards the middle
 
 import numpy as np
 import gym
-env 	= gym.make('CartPole-v0')
-#env.monitor.start('/tmp/OpenAI-CartPole', force=True)
 
-nSteps 	= 5000
-nRuns 	= 10000
-render 	= True
-nRunsAvg= 100 #print average reward over the last 'nRunsAvg' runs
-aggression = 0.99
+#the environment
+env 			= gym.make('CartPole-v0')
 
+#inputs
+nSteps 			= 5000
+nRuns 			= 10000
+render 			= True
+nRunsAvg 		= 100 #print average reward over the last 'nRunsAvg' runs
+aggression 		= 0.99
 
-bestReward = 0
-rewardRecord = [] #array to hold all rewards
+#initializing other variables
+bestReward 		= 0
+rewardRecord 	= [] #array to hold all rewards
 
 #parameters we optimize
-params = [1,1,1,1]
-#params = [0.02,0.084,9.06,0.032] #damn good parameters!
-paramsBest = params[:]
+params 			= [1,1,1,1]
+paramsBest 		= params[:]
 
 
 for j in range(nRuns): #looping through simulations
