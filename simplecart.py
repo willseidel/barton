@@ -8,17 +8,18 @@ env 	= gym.make('CartPole-v0')
 
 nSteps 	= 5000
 nRuns 	= 10000
-render 	= False
+render 	= True
 nRunsAvg= 100 #print average reward over the last 'nRunsAvg' runs
-aggression = 0.5
+aggression = 0.99
 
 
 bestReward = 0
-reward_record = [] #array to hold all rewards
+rewardRecord = [] #array to hold all rewards
 
 #parameters we optimize
 params = [1,1,1,1]
-params_best = params
+#params = [0.02,0.084,9.06,0.032] #damn good parameters!
+paramsBest = params[:]
 
 
 for j in range(nRuns): #looping through simulations
@@ -38,14 +39,14 @@ for j in range(nRuns): #looping through simulations
 
 		#maybe override based on location
 
-		#if near low edge
-		if observation[0]<(env.observation_space.low[0] + params[0]): 
+		#if near low edge or heading there fast
+		if observation[0]<(env.observation_space.low[0] + params[0]) or observation[1]<-params[1]: 
 			action = 0 #push that direction to get opposite lean
 			if (observation[2]>params[2]) or (observation[3]>params[3]):
 				action = 1 #if we have obtained opposite ean and lean rate
 
-		#if near high edge	
-		if observation[0]>(env.observation_space.high[0] - params[0]):
+		#if near high edge	or heading there fast
+		if observation[0]>(env.observation_space.high[0] - params[0]) or observation[1]>params[1]:
 			action = 1 #push that direction to get opposite lean
 			if (observation[2]<-params[2]) or (observation[3]<-params[3]):
 				action = 0 #if we have obtained opposite lean and lean rate
@@ -58,31 +59,39 @@ for j in range(nRuns): #looping through simulations
 		reward_cum+=reward
 
 		if render:
-			env.render()
+			if j%nRunsAvg==0:
+				env.render()
 
 
-	reward_record += [reward_cum]
+	rewardRecord += [reward_cum]
 
-	avgReward = sum(reward_record[j-(j%nRunsAvg)-1:j])/(j%nRunsAvg+1)
+	avgReward = sum(rewardRecord[j-(j%nRunsAvg)-1:j])/(j%nRunsAvg+1)
 	print "run#: ",j
 	print "reward: ", reward_cum
 	print "last ", nRunsAvg, " average reward: ",avgReward
 	print "best reward: ", bestReward
 	print "params[0]: ", params[0]
+	print "params[1]: ", params[1]
 	print "params[2]: ", params[2] 
 	print "params[3]: ", params[3] 
+	print "paramsBest[0]: ", paramsBest[0]
+	print "paramsBest[1]: ", paramsBest[1]
+	print "paramsBest[2]: ", paramsBest[2] 
+	print "paramsBest[3]: ", paramsBest[3] 
+
 	print "\n"
 	#testing if we beat the last set of runs and if so, then using new params
 	if (j%nRunsAvg == 0) and j>0:
 		if avgReward>bestReward:
 			print "new best parameters!"
 			bestReward = avgReward
-			params_best = params
+			paramsBest = params[:]
 
 		#setting parameters based on random
-		params[0] = params_best[0]*(1 + np.random.uniform(-aggression,aggression))
-		params[2] = params_best[2]*(1 + np.random.uniform(-aggression,aggression))
-		params[3] = params_best[3]*(1 + np.random.uniform(-aggression,aggression))
+		params[0] = paramsBest[0]*(1 + np.random.uniform(-aggression,aggression))
+		params[1] = paramsBest[1]*(1 + np.random.uniform(-aggression,aggression))
+		params[2] = paramsBest[2]*(1 + np.random.uniform(-aggression,aggression))
+		params[3] = paramsBest[3]*(1 + np.random.uniform(-aggression,aggression))
 
 
 #env.monitor.close()
