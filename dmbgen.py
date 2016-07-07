@@ -5,24 +5,24 @@ import numpy as np
 import gym
 
 #the environment
-env 			= gym.make('MountainCar-v0')
+env 			= gym.make('CartPole-v0')
 
 #inputs
-nSteps 			= 300
-nRuns 			= 5000
-render 			= True
-nRunsAvg 		= 100 #print average reward over the last 'nRunsAvg' runs
-aggression 		= 100
+nSteps 			= 500
+nRuns 			= 50000
+render 			= False
+renderIfImprove = False #render if it looks like we are about to set a new best
+nRunsAvg 		= 10 #print average reward over the last 'nRunsAvg' runs
+aggression 		= [100]
 
 #initializing other variables
-bestReward 		= -9e10
+justImproved 	= False
+bestReward 		= [-9e9]
 rewardRecord 	= [] #array to hold all rewards
 actionOptions 	= []
 params 			= [] #parameters we will optimize
 dotSpaceMax		= 1 #this is the magnitude that will govern the binning of actions based...
-#on the dot product of params and observations. Also optimized
-#dotSpaceMaxBest = dotSpaceMax
-divs			= []
+divs			= []	
 
 #this section just finds the range of discrete actions
 for i in range(100):
@@ -30,10 +30,8 @@ for i in range(100):
 	if actionSample not in actionOptions:
 		actionOptions += [actionSample]
 
-nAcs = len(actionOptions)
-
-nObs = len(env.observation_space.sample()) #number of observations
-
+nAcs = len(actionOptions) #number of actions
+nObs = len(env.observation_space.sample()) #number of observation indices
 
 #parameters we optimize
 for i in range(0,nObs):
@@ -43,8 +41,15 @@ paramsBest 		= params[:]
 
 for j in range(nRuns): #looping through simulations
 
-	observation = env.reset()
+	if len(bestReward)>1 and justImproved==True: #scale aggression based on relative improvement
+		if len(bestReward)>2:
+			aggression += ([aggression[-1]*(aggression[-2]/(bestReward[-2] - bestReward[-3]))/(aggression[-1]/(bestReward[-1] - bestReward[-2]))])
+		else:
+			aggression += [1]
+	justImproved = False
 
+
+	observation = env.reset()
 	reward_cum = 0
 	divs = []
 	#finding where to set bin divisions for assigning actions
@@ -56,7 +61,7 @@ for j in range(nRuns): #looping through simulations
 
 	for i in range(nSteps): #looping through time in each simulation
 
-		####INSERT LOGIC
+		####INSERT LOGIC TO DECIDE ACTION
 		action = 999
 		obsDot = np.dot(params,observation)
 		for k in range(0,nAcs-1):
@@ -66,9 +71,6 @@ for j in range(nRuns): #looping through simulations
 				break
 			else:
 				action = actionOptions[k+1]
-
-		#print "obsdotparams: ",obsDot
-		#print "action:", action
 		
 		#######^^^^^^##############
 
@@ -79,35 +81,38 @@ for j in range(nRuns): #looping through simulations
 
 		reward_cum+=reward
 
-		if render:
-			if j%nRunsAvg==0:
-				env.render()
-
+		if render and j%nRunsAvg==0:
+			env.render()
+		if renderIfImprove and ((j+1)%nRunsAvg==0) and (avgReward>bestReward[-1]):
+			print "avg reward: ",avgReward
+			print "best reward: ",bestReward[-1]
+			print "run number: ",j
+			env.render()
 
 	rewardRecord += [reward_cum]
 
-	avgReward = sum(rewardRecord[j-(j%nRunsAvg)-1:j])/(j%nRunsAvg+1)
+	avgReward = sum(rewardRecord[-(nRunsAvg+1):-1])/nRunsAvg
 	print "run#: ",j
 	print "reward: ", reward_cum
 	print "last ", nRunsAvg, " average reward: ",avgReward
-	print "best reward: ", bestReward
+	print "best reward: ", bestReward[-1]
 	print "params: ", params
 	print "best params: ", paramsBest
 	print "dotSpaceMax: ", dotSpaceMax
-	#print "best dotSpaceMax: ", dotSpaceMaxBest
+	print "aggression: ", aggression[-1]
 
 	print "\n"
 	#testing if we beat the last set of runs and if so, then using new params
 	if (j%nRunsAvg == 0) and j>0:
-		if avgReward>bestReward:
+		if avgReward>bestReward[-1]:
 			print "new best parameters!"
-			bestReward 		= avgReward
+			bestReward 		+= [avgReward]
 			paramsBest 		= params[:]
-			#dotSpaceMaxBest = dotSpaceMax
+			if len(bestReward)>1:
+				justImproved 	= True
 
 		#setting parameters based on random
 		for m in range(0,len(params)):
-			params[m] = paramsBest[m]*(1 + np.random.uniform(-aggression,aggression))
-			#dotSpaceMax = max(1e-6,dotSpaceMaxBest*(1 + np.random.uniform(-aggression,aggression)))
+			params[m] = paramsBest[m]*np.exp(np.random.uniform(-aggression[-1],aggression[-1]))
 
 #env.monitor.close()
