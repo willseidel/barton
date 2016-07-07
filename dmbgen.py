@@ -5,15 +5,15 @@ import numpy as np
 import gym
 
 #the environment
-env 			= gym.make('CartPole-v0')
+env 			= gym.make('MountainCar-v0')
 
 #inputs
 nSteps 			= 500
-nRuns 			= 50000
+nRuns 			= 500000
 render 			= False
 renderIfImprove = False #render if it looks like we are about to set a new best
-nRunsAvg 		= 10 #print average reward over the last 'nRunsAvg' runs
-aggression 		= [100]
+nRunsAvg 		= 2 #print average reward over the last 'nRunsAvg' runs
+aggression 		= [1]
 
 #initializing other variables
 justImproved 	= False
@@ -41,11 +41,13 @@ paramsBest 		= params[:]
 
 for j in range(nRuns): #looping through simulations
 
-	if len(bestReward)>1 and justImproved==True: #scale aggression based on relative improvement
-		if len(bestReward)>2:
-			aggression += ([aggression[-1]*(aggression[-2]/(bestReward[-2] - bestReward[-3]))/(aggression[-1]/(bestReward[-1] - bestReward[-2]))])
-		else:
-			aggression += [1]
+#	if justImproved==True: #scale aggression based on relative improvement
+#		if len(bestReward)>2:
+#			aggression += [min(aggression[0],max(0.1,(aggression[-1]*(aggression[-2]/(bestReward[-2] 
+#				- bestReward[-3]))/(aggression[-1]/(bestReward[-1] - bestReward[-2])))))]
+#		else:
+#			aggression += [aggression[-1]]
+
 	justImproved = False
 
 
@@ -79,7 +81,8 @@ for j in range(nRuns): #looping through simulations
 		if done:
 			break
 
-		reward_cum+=reward
+		reward_cum += reward
+
 
 		if render and j%nRunsAvg==0:
 			env.render()
@@ -90,7 +93,6 @@ for j in range(nRuns): #looping through simulations
 			env.render()
 
 	rewardRecord += [reward_cum]
-
 	avgReward = sum(rewardRecord[-(nRunsAvg+1):-1])/nRunsAvg
 	print "run#: ",j
 	print "reward: ", reward_cum
