@@ -7,17 +7,17 @@ def paramSweep(paramVals,nSet):
 
 	nGuessVal 	= len(paramVals)
 	nComb 		= nGuessVal**nSet
-	params 		= np.zeros((nComb,nSet))
+	paramList 		= np.zeros((nComb,nSet))
 
 	for i in range(0,nComb):
 		for j in range(0,nSet):
 				valIndex = (int(np.floor(i/(nGuessVal**(nSet - j - 1)))))%nGuessVal
-				params[i][j] = paramVals[valIndex]
+				paramList[i][j] = paramVals[valIndex]
 
-	return params
+	return paramList
 
 
-guess = [1,2,3,4]
+guess = [1e-5,1e-4,1e-3,1e-2,1e-1,1e0,1e1,1e2,1e3]
 paramNumber = 3
 params = paramSweep(guess,paramNumber)
 
