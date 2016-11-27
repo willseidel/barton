@@ -19,7 +19,7 @@ bestReward 		= 0
 rewardRecord 	= [] #array to hold all rewards
 
 #parameters we optimize
-params 			= [10,10,10,10]
+params 			= [1,1,1,1]
 paramsBest 		= params[:]
 
 
