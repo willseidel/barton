@@ -1,13 +1,9 @@
-#TODO: Make parameter set creation function to increase code reuse.
-
 import numpy as np
 import gym
 
-
-
-#this function runs nRuns simulations using a set of parameters to evaluate
-#the highest reward that the parameter set produces
 def evalParamSet(env,nRuns,divs,nAcs,params,render):
+	#this function runs nRuns simulations using a set of parameters to evaluate
+	#the highest reward that the parameter set produces
 
 	rewardRecord = []
 
@@ -46,21 +42,51 @@ def evalParamSet(env,nRuns,divs,nAcs,params,render):
 
 	return np.mean(rewardRecord)
 
+class paramSet(object):
+	#this class deals with the creation and manipulation of sets of parameters.
 
-#this function takes a set of parameter values and a number of parameters in each set.
-#It then returns a list of sets that encompass all possible combinations of the values
-#of length = nParams.
-def paramSweep(paramVals,nParams):
+	def __init__(self, gridOrder,gridDensity, nParamsPerSet):    
+		self.gridOrder 		= gridOrder 	#number of orders of magnitude in initial grid
+		self.gridDensity 	= gridDensity 	#number of grid points per order of magnitude
+		self.nParamsPerSet 	= nParamsPerSet #number of parameters per set 
 
-	nComb 		= len(paramVals)**nParams #number of combinations
-	paramList 	= np.zeros((nComb,nParams))
+	def paramSweep(self, paramVals, nParamsPerSet):
+		#this function takes a set of parameter values. It then returns a list of sets that
+		#encompass all possible combinations of the values of length = nParamsPerSet.
+		nComb 			= len(paramVals)**self.nParamsPerSet #number of combinations
+		self.paramList 	= np.zeros((nComb,self.nParamsPerSet))
+		self.paranList = []
+		for i in range(0,nComb):
+			for j in range(0,self.nParamsPerSet):
+					valIndex = (int(np.floor(i/(len(paramVals)**(self.nParamsPerSet - j - 1)))))%len(paramVals)
+					self.paramList[i][j] = paramVals[valIndex]
+		return self.paramList 	#list of parameter sets
 
-	for i in range(0,nComb):
-		for j in range(0,nParams):
-				valIndex = (int(np.floor(i/(len(paramVals)**(nParams - j - 1)))))%len(paramVals)
-				paramList[i][j] = paramVals[valIndex]
+	def multiOrderSweep(self):
+	#this function loops through gridOrder and gridDensity making values of varying
+	#order at a given density. These are then fed to paramsweep to make all combinations.
 
-	return paramList
+		paramGridValues 	= []
+		for i in range(0,self.gridOrder):
+			for k in range(0,self.gridDensity):
+				paramGridValues += [((k+1)*(10/self.gridDensity))*(10**i)]
+				paramGridValues += [-((k+1)*(10/self.gridDensity))*(10**i)]
+
+		self.paramSweep(paramGridValues,self.nParamsPerSet)
+
+	def singleOrderSweep(self,bestParams):
+	#this function loops through gridDensity and the number of params.
+	#It then creates a list of paramGridValues based on scalar 
+	#multiples of existing 'bestParams' (ie 0.9x 1.1x 0.8x 1.2x etc). 
+	#These are then fed to paramsweep to make all combinations.
+
+		paramGridValues 	= []
+		for k in range(1,self.gridDensity): #setting new tighter grid around 'best' values
+			for l in range(0,self.nParamsPerSet):
+				paramGridValues += [(1+(k/10.0))*bestParams[l]]
+				paramGridValues += [-(1+(k/10.0))*bestParams[l]]
+
+		self.paramSweep(paramGridValues,self.nParamsPerSet) #new paramSet
 
 
 #the environment
@@ -77,13 +103,14 @@ paramGridDensity 	= 1 	#number of elements in grid per order (ie order 1e0 w/den
 
 #initializing other variables
 actionOptions 		= []
-params 				= [] #parameters we will optimize
 dotSpaceMax			= 1 #this is the magnitude that will govern the binning of actions based...
 divs				= []	
 rewardMeanRecord 	= []
 paramGridValues 	= []
 bestReward 			= -10e10
 nRunsCum 			= 0 #total number of runs
+nParams 			= 0 #number of parameters to optimize 
+
 
 #this section just finds the range of discrete actions
 for i in range(100):
@@ -96,7 +123,7 @@ nObs = len(env.observation_space.sample()) #number of observation indices
 
 #parameters we optimize
 for i in range(0,nObs):
-	params += [1]
+	nParams += 1
 
 #finding where to set bin divisions for assigning actions
 if nAcs ==2: #special case
@@ -105,20 +132,18 @@ else: #
 	for i in range(1,nAcs):
 		divs += [dotSpaceMax - (i-1)*((2*dotSpaceMax)/(nAcs-2))]
 
-for i in range(0,paramGridOrder):
-	for k in range(0,paramGridDensity):
-		paramGridValues += [((k+1)*(10/paramGridDensity))*(10**i)]
-		paramGridValues += [-((k+1)*(10/paramGridDensity))*(10**i)]
+myParams 	= paramSet(paramGridOrder,paramGridDensity,nParams) #initializing parameter instance
+myParams.multiOrderSweep() #creating coarse multi-order sweep to produce set of parameter sets
 
-paramSet = paramSweep(paramGridValues,len(params))
-bestParams = paramSet[1]
+bestParams = myParams.paramList[1] #arbitratily setting 'best' parameter set
+
 while nRunsCum<nRunsMax:
 
 	paramGridValues = [] #resetting grid values from last loop
 	rewardMeanRecord = [] #resetting record of rewards from last loop
 
-	for i in range(0,len(paramSet)):
-		rewardMeanRecord += [evalParamSet(env,nRunsAvg,divs,nAcs,paramSet[i],render=False)]
+	for i in range(0,len(myParams.paramList)):
+		rewardMeanRecord += [evalParamSet(env,nRunsAvg,divs,nAcs,myParams.paramList[i],render=False)]
 		nRunsCum +=nRunsAvg
 		print "total runs: ", nRunsCum
 		print "mean reward of last set: ", rewardMeanRecord[-1]
@@ -127,17 +152,12 @@ while nRunsCum<nRunsMax:
 
 	if max(rewardMeanRecord)>bestReward and numberOfHits>0:
 		bestReward = max(rewardMeanRecord)
-		bestParams = paramSet[rewardMeanRecord.index(max(rewardMeanRecord))]
+		bestParams = myParams.paramList[rewardMeanRecord.index(max(rewardMeanRecord))]
 		print "best average reward:", bestReward
 		print "best params: ", bestParams
 		rewardMeanRecord += [evalParamSet(env,nRunsAvg,divs,nAcs,bestParams,render=True)] #run to show off
 
-		for k in range(1,paramGridDensity): #setting new tighter grid around 'best' values
-			for l in range(0,len(params)):
-				paramGridValues += [(1+(k/10.0))*bestParams[l]]
-				paramGridValues += [-(1+(k/10.0))*bestParams[l]]
-
-		paramSet = paramSweep(paramGridValues,len(params)) #new paramSet
+		myParams.singleOrderSweep(bestParams) #setting new tighter grid around 'best' values
 
 
 rewardMeanRecord = [evalParamSet(env,nRunsAvg,divs,nAcs,bestParams,render=True)] #run to show off
@@ -146,9 +166,3 @@ print "best average reward:", bestReward
 print "best params: ", bestParams
 
 env.render(close=True)
-
-
-print "paramGridDensity: ",paramGridDensity
-print "paramGridOrder: ",paramGridOrder
-print "len(bestparams): ",len(bestParams)
-print "lens(params):", len(params)
