@@ -1,3 +1,15 @@
+#this is the front end script that:
+#1) figures out how many actions an environment has
+#2) creates a grid of parameters to evaluate
+#3) evalutes those parameters to find a best hit
+#4) refines the grid
+#5) continues evaluating and refining
+#6) shows the final result
+##########
+#This file relies on 
+# - evalParamSet.py
+# - paramSet.py
+
 from paramSet import paramSet
 from evalParamSet import evalParamSet
 import numpy as np
